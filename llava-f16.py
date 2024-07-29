@@ -1,6 +1,7 @@
 import requests
+import csv
+import time
 from PIL import Image
-
 import torch
 from transformers import AutoProcessor, LlavaForConditionalGeneration
 
@@ -20,17 +21,52 @@ conversation = [
 
       "role": "user",
       "content": [
-          {"type": "text", "text": "Does this person have a wound or severe hemorrhage? If so, is the wound on the head, torso, upper body, or lower body? If no wound, respond with 'n/a'."},
+          {"type": "text", "text": "Does this person have any wounds? Wounds include burns, hemorrhage, and abrasion. If there is a wound, is it on the head, torso, upper body, or lower body? If there is no wound, answer 'none'"},
           {"type": "image"},
         ],
     },
 ]
 prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
 
-image_file = "https://live.staticflickr.com/3463/3813584489_7472b58862_b.jpg"
-# image_file = "http://images.cocodataset.org/val2017/000000039769.jpg"
-raw_image = Image.open(requests.get(image_file, stream=True).raw)
-inputs = processor(prompt, raw_image, return_tensors='pt').to(0, torch.float16)
+# Code for opening a downloaded image
+image = Image.open('/external_mnt/triage_dataset/images/image45786.jpeg')
 
-output = model.generate(**inputs, max_new_tokens=200, do_sample=False)
+# Code for opening an image url
+# image_file = "https://live.staticflickr.com/3463/3813584489_7472b58862_b.jpg"
+# raw_image = Image.open(requests.get(image_file, stream=True).raw)
+
+inputs = processor(prompt, image, return_tensors='pt').to(0, torch.float16)
+
+# Measure the time to the first token
+start_time = time.time()
+with torch.no_grad():
+    output = model.generate(**inputs, max_new_tokens=200, do_sample=False)
+first_token_time = time.time()
+
+# Calculate and print the time to the first token
+time_to_first_token = first_token_time - start_time
+print(f"Time to first token: {time_to_first_token:.4f} seconds")
+
 print(processor.decode(output[0][2:], skip_special_tokens=True))
+
+# Measure the total time
+end_time = time.time()
+
+# Calculate and print the total time and throughput
+total_time = end_time - start_time
+total_tokens = output.shape[1] # Total tokens generated in the output sequence
+throughput = total_tokens/total_time
+
+print(f"Total execution time: {total_time:.4f} seconds")
+print(f"Total tokens generated: {total_tokens}")
+print(f"Throughput: {throughput:.2f} seconds")
+
+#output the time_to_first_token and throughput to a csv file separated by a comma with appropriate labels
+with open('llava_fp16_orin.csv', mode='w', newline='') as file:
+    writer = csv.writer(file)
+    
+    # Write the header
+    writer.writerow(['time_to_first_token', 'total_time', 'throughput'])
+    
+    # Write the data
+    writer.writerow([time_to_first_token, total_time, throughput])

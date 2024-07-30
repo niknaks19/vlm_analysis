@@ -11,8 +11,7 @@ model = LlavaForConditionalGeneration.from_pretrained(
     model_id, 
     torch_dtype=torch.float16, 
     low_cpu_mem_usage=True, 
-    load_in_8bit=True
-)
+).to(0, torch.float16)
 
 processor = AutoProcessor.from_pretrained(model_id)
 
@@ -22,7 +21,7 @@ prompt = "USER: <image>\nDoes the person or mannequin in the image have an amput
 image_directory = '/home/dtc-system/riss/triage_dataset/new_images'
 
 # CSV file to save results
-csv_file = 'llava_int8_ws_take2.csv'
+csv_file = 'llava_fp16_ws_take1.csv'
 
 # Open the CSV file and write the header
 with open(csv_file, mode='w', newline='') as file:
@@ -63,58 +62,3 @@ with open(csv_file, mode='w', newline='') as file:
             writer.writerow([image_name, time_to_first_token, total_time, throughput, model_text_output])
 
 print("Inference on all images is complete. Results saved to", csv_file)
-
-# import requests
-# import time
-# from PIL import Image
-# import torch
-# from transformers import AutoProcessor, LlavaForConditionalGeneration
-
-# model_id = "llava-hf/llava-1.5-7b-hf"
-# model = LlavaForConditionalGeneration.from_pretrained(
-#     model_id, 
-#     torch_dtype=torch.float16, 
-#     low_cpu_mem_usage=True, 
-#     load_in_8bit=True
-# )
-
-# processor = AutoProcessor.from_pretrained(model_id)
-
-# prompt = "USER: <image>\nDoes the person in the image have an amputation? An amputation is the removal of a body part with a severe hemorrhage at the wound site. If there is an amputation, is it located on the head, torso, arm, or leg?. ASSISTANT:"
-
-# image = Image.open('/home/dtc-system/riss/triage_dataset/no_wound.png')
-# inputs = processor(prompt, image, return_tensors='pt').to(0, torch.float16)
-
-# # Measure the time to the first token
-# start_time = time.time()
-# with torch.no_grad():
-#     output = model.generate(**inputs, max_new_tokens=200, do_sample=False)
-# first_token_time = time.time()
-
-# # Calculate and print the time to the first token
-# time_to_first_token = first_token_time - start_time
-# print(f"Time to first token: {time_to_first_token:.4f} seconds")
-
-# print(processor.decode(output[0][2:], skip_special_tokens=True))
-
-# #Measure the total time
-# end_time = time.time()
-
-# # Calculate and print the total time and throughput
-# total_time = end_time - start_time
-# total_tokens = output.shape[1] # Total tokens generated in the output sequence
-# throughput = total_tokens/total_time
-
-# print(f"Total execution time: {total_time:.4f} seconds")
-# print(f"Total tokens generated: {total_tokens}")
-# print(f"Throughput: {throughput:.2f} seconds")
-
-# #output the time_to_first_token and throughput to a csv file separated by a comma with appropriate labels
-# with open('llava_int8_ws.csv', mode='w', newline='') as file:
-#     writer = csv.writer(file)
-    
-#     # Write the header
-#     writer.writerow(['time_to_first_token', 'total_time', 'throughput', 'model_text_output'])
-    
-#     # Write the data
-#     writer.writerow([time_to_first_token, total_time, throughput, processor.decode(output[0][2:], skip_special_tokens=True)])
